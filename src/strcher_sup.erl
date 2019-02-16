@@ -1,10 +1,10 @@
 %%%-------------------------------------------------------------------
-%%% @author Ben Crabbe <bcrabbe@Bens-MBP>
+%%% @author Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%% @copyright (C) 2019, Ben Crabbe
 %%% @doc
 %%%
 %%% @end
-%%% Created : 27 Jan 2019 by Ben Crabbe <bcrabbe@Bens-MBP>
+%%% Created : 27 Jan 2019 by Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%%-------------------------------------------------------------------
 -module(strcher_sup).
 

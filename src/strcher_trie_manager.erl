@@ -1,10 +1,10 @@
 %%%-------------------------------------------------------------------
-%%% @author Ben Crabbe <bcrabbe@Bens-MBP>
+%%% @author Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%% @copyright (C) 2019, Ben Crabbe
 %%% @doc
 %%%
 %%% @end
-%%% Created : 27 Jan 2019 by Ben Crabbe <bcrabbe@Bens-MBP>
+%%% Created : 27 Jan 2019 by Ben Crabbe <ben.crabbe.dev@gmail.com>
 %%%-------------------------------------------------------------------
 -module(strcher_trie_manager).
 
@@ -12,31 +12,28 @@
 
 %% API
 -export([start_link/0]).
+-export([add_words/1]).
+-export([trie_to_map/0]).
 
 %% gen_statem callbacks
--export([callback_mode/0, init/1, terminate/3, code_change/4]).
+-export([callback_mode/0, init/1, terminate/3]).
 -export([handle_event/4]).
 
 -define(SERVER, ?MODULE).
 
--record(data, {}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
+trie_to_map() ->
+    gen_statem:call(?SERVER, to_map).
 
-%%--------------------------------------------------------------------
-%% @doc
-%% Creates a gen_statem process which calls Module:init/1 to
-%% initialize. To ensure a synchronized start-up procedure, this
-%% function does not return until Module:init/1 has returned.
-%%
-%% @end
-%%--------------------------------------------------------------------
--spec start_link() ->
-                        {ok, Pid :: pid()} |
-                        ignore |
-                        {error, Error :: term()}.
+add_words(Words) ->
+    gen_statem:cast(?SERVER, {add, Words}).
+
+-spec start_link() -> {ok, Pid :: pid()} |
+                      ignore |
+                      {error, Error :: term()}.
 start_link() ->
     gen_statem:start_link({local, ?SERVER}, ?MODULE, [], []).
 
@@ -44,75 +41,37 @@ start_link() ->
 %%% gen_statem callbacks
 %%%===================================================================
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Define the callback_mode() for this callback module.
-%% @end
-%%--------------------------------------------------------------------
 -spec callback_mode() -> gen_statem:callback_mode_result().
 callback_mode() -> handle_event_function.
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Whenever a gen_statem is started using gen_statem:start/[3,4] or
-%% gen_statem:start_link/[3,4], this function is called by the new
-%% process to initialize.
-%% @end
-%%--------------------------------------------------------------------
--spec init(Args :: term()) ->
-                  gen_statem:init_result(term()).
+-spec init(Args :: term()) -> gen_statem:init_result(term()).
 init([]) ->
     process_flag(trap_exit, true),
-    {ok, state_name, #data{}}.
+    {ok, ready, #{trie => strcher_builder:init()}}.
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% This function is called for every event a gen_statem receives.
-%% @end
-%%--------------------------------------------------------------------
--spec handle_event(enter,
-                   OldState :: term(),
-                   State :: term(),
-                   Data :: term()) ->
-                          gen_statem:state_enter_result(term());
-                  (gen_statem:event_type(),
+-spec handle_event(gen_statem:event_type(),
                    Msg :: term(),
                    State :: term(),
                    Data :: term()) ->
                           gen_statem:event_handler_result(term()).
+
+handle_event(cast,
+             {add, NewWords},
+             ready = _State,
+             #{trie := Trie}) ->
+    strcher_builder:add_words(Trie, NewWords),
+    keep_state_and_data;
+
+handle_event({call, From}, to_map, _State, #{trie := Trie}) ->
+    {keep_state_and_data, [{reply, From, strcher_util:trie_to_map(Trie)}]};
+
 handle_event({call, From}, _Msg, State, Data) ->
     {next_state, State, Data, [{reply, From, ok}]}.
 
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% This function is called by a gen_statem when it is about to
-%% terminate. It should be the opposite of Module:init/1 and do any
-%% necessary cleaning up. When it returns, the gen_statem terminates with
-%% Reason. The return value is ignored.
-%% @end
-%%--------------------------------------------------------------------
 -spec terminate(Reason :: term(), State :: term(), Data :: term()) ->
                        any().
 terminate(_Reason, _State, _Data) ->
     void.
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% Convert process state when code is changed
-%% @end
-%%--------------------------------------------------------------------
--spec code_change(
-        OldVsn :: term() | {down,term()},
-        State :: term(), Data :: term(), Extra :: term()) ->
-                         {ok, NewState :: term(), NewData :: term()} |
-                         (Reason :: term()).
-code_change(_OldVsn, State, Data, _Extra) ->
-    {ok, State, Data}.
 
 %%%===================================================================
 %%% Internal functions
